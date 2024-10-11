@@ -1,0 +1,93 @@
+<!-- HTML -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contrôle du Servo</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <h1>Contrôle du Servo avec le Fader</h1>
+    <p>Déplacez le fader pour contrôler le servomoteur :</p>
+
+    <!-- Fader pour contrôler le servomoteur -->
+    <input type="range" id="servoFader" min="0" max="180" value="90" step="1" oninput="sendServoValue()">
+    <p>Valeur actuelle: <span id="servoValue">90</span> degrés</p>
+    
+    <!-- Bouton pour allumer ou éteindre la LED -->
+    <button class="btn-toggle" onclick="toggleLed()">Surtout ne click pas ici</button>
+    
+    <!-- Bouton pour retourner à la page d'accueil -->
+    <button class="btn-bottom-right" onclick="goHome()">Retour à l'accueil</button>
+
+    <!-- JavaScript -->
+    <script>
+        // Initialisation de la connexion WebSocket
+        const socket = new WebSocket('ws://10.1.224.127'); // Remplace par l'adresse IP de ton ESP8266
+        const fader = document.getElementById("servoFader");
+        const servoValueDisplay = document.getElementById("servoValue");
+
+        // Gestion de la connexion WebSocket ouverte
+        socket.onopen = function () {
+            console.log('WebSocket connecté');
+        };
+
+        // Gestion de la réception de messages depuis le serveur WebSocket
+        socket.onmessage = function (event) {
+            console.log('Message du serveur:', event.data);
+
+            // Mise à jour de l'angle du servomoteur depuis un message "ANGLE:"
+            if (event.data.startsWith("ANGLE:")) {
+                const angle = parseInt(event.data.split(":")[1], 10);
+                fader.value = angle;
+                servoValueDisplay.textContent = angle;
+            }
+        };
+
+        // Gestion des erreurs WebSocket
+        socket.onerror = function (error) {
+            console.error('WebSocket erreur:', error);
+        };
+
+        // Gestion de la fermeture de la connexion WebSocket
+        socket.onclose = function () {
+            console.log('WebSocket déconnecté');
+        };
+
+        // Fonction pour retourner à la page d'accueil
+        function goHome() {
+            window.location.href = 'index.html';
+        }
+
+        // Fonction pour envoyer la valeur du fader au serveur via WebSocket
+        function sendServoValue() {
+            const faderValue = fader.value;
+            servoValueDisplay.textContent = faderValue;
+
+            // Vérifie que la connexion WebSocket est ouverte avant d'envoyer la valeur
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send('ANGLE:' + faderValue);
+            } else {
+                console.error('WebSocket n\'est pas connecté');
+            }
+        }
+
+        // Fonction pour allumer ou éteindre la LED
+        let ledState = false; // Variable pour suivre l'état de la LED
+
+        function toggleLed() {
+            if (socket.readyState === WebSocket.OPEN) {
+                // Inverse l'état de la LED et envoie la commande appropriée
+                ledState = !ledState;
+                const message = ledState ? 'LED_ON' : 'LED_OFF';
+                socket.send(message);
+                console.log('Commande envoyée :', message);
+            } else {
+                console.error('WebSocket n\'est pas connecté');
+            }
+        }
+    </script>
+</body>
+</html>
